@@ -1,11 +1,11 @@
 # Universal AI Memory Sync
 
-> One tool to sync memory across all your AI agents — WorkBuddy, OpenClaw, Hermes, Cursor, Windsurf, and more.
+> One tool to sync memory across all your AI agents — Cursor, OpenClaw, Hermes, Windsurf, WorkBuddy, and more.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)]()
 [![Python](https://img.shields.io/badge/python-3.8%2B-green)]()
-[![Version](https://img.shields.io/badge/version-1.4.0-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.5.0-brightgreen)]()
 
 ![Demo](demo.gif)
 
@@ -15,7 +15,7 @@
 
 > **"Every AI agent has memory. No AI agent should lose it."**
 
-Today, every AI developer uses multiple AI tools: WorkBuddy for daily tasks, Cursor for coding, Windsurf for design… but each tool's memory is an island — the project context you built in WorkBuddy disappears the moment you switch to Cursor.
+Today, every AI developer uses multiple AI tools: Cursor for coding, Windsurf for design, OpenClaw for automation, Hermes for tasks… but each tool's memory is an island — the project context you built in Cursor disappears the moment you switch to Windsurf.
 
 **This shouldn't be a problem.**
 
@@ -23,16 +23,17 @@ Universal AI Memory Sync aims to become the **public infrastructure for AI memor
 
 ```
 Today's Reality:
-WorkBuddy ──── isolated memory ──── GitHub private repo
 Cursor    ──── isolated memory ──── (no sync)
 OpenClaw  ──── isolated memory ──── (different repo)
 Windsurf  ──── isolated memory ──── (no sync)
+Hermes    ──── isolated memory ──── (no sync)
 
 With Universal Memory Sync:
-WorkBuddy ──┐
-Cursor    ──┼── unified sync ── GitHub private repo ── any device
-OpenClaw  ──┤                     (one tool, all agents)
-Windsurf  ──┘
+Cursor    ──┐
+OpenClaw  ──┼── unified sync ── GitHub private repo ── any device
+Windsurf  ──┤                     (one tool, all agents)
+Hermes    ──┘
+WorkBuddy ──┘
 ```
 
 ---
@@ -45,7 +46,6 @@ Windsurf  ──┘
 | **AgentMem** | SaaS Cross-Agent Sync | Commercial | API service, $29/mo+ |
 | **SAMEP** (arXiv) | Enterprise Protocol | Paper only | PostgreSQL + Pinecone + Redis, complex setup |
 | **ClawSouls Memory Sync** | OpenClaw Official | — | `age` encryption + GitHub API, OpenClaw-only |
-| **OpenClaw Memory Sync Protocol** | Skill Workflow Spec | — | Multi-file coordination, not a cloud sync tool |
 
 > **Key insight:** Heavy solutions (mem0/AgentMem) are too complex and expensive; lightweight solutions (ClawSouls/ours) are each tied to a single platform. **Nobody is doing "cross-platform + lightweight + pure Git files + zero dependencies" — that's our positioning.**
 
@@ -56,7 +56,7 @@ Windsurf  ──┘
 | Feature | Description |
 |---|---|
 | ✅ **One-phrase trigger** | Just say "sync memory" — no commands needed |
-| ✅ **Multi-agent support** | workbuddy / cursor / openclaw / hermes / windsurf / generic / all |
+| ✅ **Multi-agent support** | cursor / openclaw / hermes / windsurf / workbuddy / generic / all |
 | ✅ **Full workspace scan** | Auto-scans all workspaces in one shot |
 | ✅ **Cross-platform** | Windows / macOS / Linux |
 | ✅ **Conflict handling** | Latest mtime wins; full Git history for rollback |
@@ -71,11 +71,11 @@ Windsurf  ──┘
 
 | Agent | Memory Files | Search Paths |
 |---|---|---|
-| **workbuddy** | `.workbuddy/memory/*.md` | `~/.workbuddy/memory/` + `~/WorkBuddy/<id>/.workbuddy/memory/` |
 | **cursor** | `CLAUDE.md`, `.cursorrules`, `.cursor/rules/` | `~/.cursor/rules/` + `~/projects/*/` |
 | **openclaw** | `MEMORY.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `AGENTS.md`, `memory/*.md` | `~/.openclaw/workspace/` + `~/.openclaw/agents/<cid>/` + project dirs |
 | **hermes** | `MEMORY.md`, `USER.md`, `state.db` | `~/.hermes/memories/` |
 | **windsurf** | `.windsurf/rules/`, `.windsurf/memory/` | `~/.windsurf/rules/`, `~/.windsurf/memory/` |
+| **workbuddy** | `.workbuddy/memory/*.md` | `~/.ai-memory/memory/workbuddy/` + `~/WorkBuddy/<id>/.workbuddy/memory/` |
 | **generic** | Any directory | Custom via `MEMORY_DIR` env var |
 | **all** | All of the above | All detected sources |
 
@@ -98,13 +98,11 @@ Windsurf  ──┘
 
 ### Step 3: Install
 
-```powershell
-# Windows
-git clone https://github.com/SuperCrzy/AI-Memory-Sync "$env:USERPROFILE\.workbuddy\skills\memory-sync"
-```
-
 ```bash
-# macOS / Linux
+# Clone anywhere convenient:
+git clone https://github.com/SuperCrzy/AI-Memory-Sync ~/.ai-memory/skill
+
+# Or as a WorkBuddy skill:
 git clone https://github.com/SuperCrzy/AI-Memory-Sync ~/.workbuddy/skills/memory-sync
 ```
 
@@ -112,10 +110,10 @@ git clone https://github.com/SuperCrzy/AI-Memory-Sync ~/.workbuddy/skills/memory
 
 ```bash
 # Windows
-python %USERPROFILE%\.workbuddy\skills\memory-sync\scripts\memory_sync.py setup --repo https://github.com/yourname/ai-memory --token ghp_xxxxx
+python ~/.ai-memory/skill/scripts/memory_sync.py setup --repo https://github.com/yourname/ai-memory --token ghp_xxxxx
 
 # macOS / Linux
-python3 ~/.workbuddy/skills/memory-sync/scripts/memory_sync.py setup --repo https://github.com/yourname/ai-memory --token ghp_xxxxx
+python3 ~/.ai-memory/skill/scripts/memory_sync.py setup --repo https://github.com/yourname/ai-memory --token ghp_xxxxx
 ```
 
 ---
@@ -138,7 +136,6 @@ python3 ~/.workbuddy/skills/memory-sync/scripts/memory_sync.py setup --repo http
 
 ```bash
 # Push specific agent
-python memory_sync.py push --agent workbuddy
 python memory_sync.py push --agent cursor
 python memory_sync.py push --agent all          # Push all at once
 
@@ -146,7 +143,7 @@ python memory_sync.py push --agent all          # Push all at once
 python memory_sync.py pull --agent openclaw
 python memory_sync.py pull --agent all          # Pull all at once
 
-# Discover agents on this machine
+# Discover agents on your machine
 python memory_sync.py agents
 
 # Check status
@@ -178,13 +175,6 @@ After sync, your GitHub private repo stores memory for all agents:
 ```
 ai-memory/
 ├── agents/
-│   ├── workbuddy/
-│   │   ├── __user__/             # User-level memory
-│   │   │   └── MEMORY.md
-│   │   └── workspaces/           # Per-workspace memory
-│   │       ├── 20260424095145/
-│   │       │   └── 2026-04-24.md
-│   │       └── Claw/
 │   ├── cursor/
 │   │   ├── rules/               # ~/.cursor/rules/
 │   │   └── projects/             # Project-level CLAUDE.md
@@ -202,9 +192,15 @@ ai-memory/
 │   │   │   ├── MEMORY.md
 │   │   │   └── USER.md
 │   │   └── state.db              # SQLite session state
-│   └── windsurf/
-│       ├── rules/
-│       └── memory/
+│   ├── windsurf/
+│   │   ├── rules/
+│   │   └── memory/
+│   └── workbuddy/
+│       ├── __user__/             # User-level memory
+│       │   └── MEMORY.md
+│       └── workspaces/           # Per-workspace memory
+│           ├── 20260424095145/
+│           └── Claw/
 ```
 
 ---
@@ -228,7 +224,8 @@ Device A (Home)                              Device B (Office)
 
 | Variable | Description | Default |
 |---|---|---|
-| `WORKBUDDY_WORKSPACE_ROOT` | WorkBuddy workspace root | `~/WorkBuddy` |
+| `AI_MEMORY_WORKSPACE_ROOT` | Workspace root directory | `~/WorkBuddy` |
+| `AI_MEMORY_LANG` | Force output language (`en` or `zh`) | Auto-detect from system locale |
 | `MEMORY_DIR` | Memory dir for generic mode | (none) |
 
 ---
@@ -237,12 +234,14 @@ Device A (Home)                              Device B (Office)
 
 ```
 universal-ai-memory-sync/
-├── SKILL.md              # WorkBuddy Skill descriptor
+├── SKILL.md              # Skill descriptor
 ├── README.md             # This document
 ├── LICENSE               # MIT License
 ├── .gitignore            # Excludes config (contains token)
+├── demo.gif              # Terminal animation demo
 └── scripts/
-    └── memory_sync.py    # Core script v1.4.0
+    ├── memory_sync.py    # Core script v1.5.0
+    └── generate_demo_gif.py  # Demo GIF generator (optional)
 ```
 
 ---
@@ -255,26 +254,26 @@ When the same file is modified on multiple devices simultaneously, the **latest 
 
 ## FAQ
 
-**Q: Push failed with authentication error?**  
+**Q: Push failed with authentication error?**
 A: Your token may have expired. Re-run `setup` to update it.
 
-**Q: AI still doesn't remember after pulling?**  
+**Q: AI still doesn't remember after pulling?**
 A: Run `status` to confirm files were pulled, then **start a new conversation** — AI reads memory at the start of each session.
 
-**Q: How do I sync Cursor memory?**  
+**Q: How do I sync Cursor memory?**
 A: `python memory_sync.py push --agent cursor` — auto-scans `~/.cursor/rules/` and project directories.
 
-**Q: Does it support OpenClaw?**  
+**Q: Does it support OpenClaw?**
 A: Yes. Detects `MEMORY.md` / `SOUL.md` / `USER.md` / `IDENTITY.md` / `AGENTS.md` and `memory/*.md` files, archives to `agents/openclaw/`.
 
-**Q: Is my token safe?**  
-A: Token is stored in `~/.workbuddy/memory-sync-config.json`, which is in `.gitignore` and never pushed.
+**Q: Is my token safe?**
+A: Token is stored in `~/.ai-memory/config.json`, which is in `.gitignore` and never pushed.
 
 ---
 
 ## Roadmap
 
-- [ ] **v1.4** — Optional `age` encryption layer (end-to-end encryption, inspired by ClawSouls)
+- [ ] **v1.6** — Optional `age` encryption layer (end-to-end encryption)
 - [ ] **v2.0** — Universal AI Memory Spec: a unified `.ai-memory/` directory structure adopted across all platforms
 - [ ] **v2.1** — MCP protocol integration: agents can query each other's memory
 - [ ] **Community** — Drive adoption of standardized memory file formats across AI agents

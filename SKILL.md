@@ -1,13 +1,13 @@
 ---
 name: universal-memory-sync
 description: >
-  Universal AI Memory Sync Skill. Syncs memory files from WorkBuddy / OpenClaw / Hermes / Cursor / Windsurf
+  Universal AI Memory Sync Skill. Syncs memory files from Cursor / OpenClaw / Hermes / Windsurf / WorkBuddy
   and other AI agents to a private GitHub repository, enabling cross-device context sharing.
   Supports push, pull, status check, agents scan, and initial setup.
   Trigger phrases: sync memory, push memory, pull memory, download memory, memory sync, memory backup,
   memory sync status, agents scan, show agents, setup memory sync, push all agents,
   sync openclaw, sync hermes, sync cursor, universal memory sync, cross-agent memory.
-version: 1.4.0
+version: 1.5.0
 author: SuperCrzy
 license: MIT
 repository: https://github.com/SuperCrzy/AI-Memory-Sync
@@ -18,8 +18,8 @@ scripts_dir: scripts
 
 Sync AI memory files from all major AI agents to a GitHub private repo — cross-device, cross-platform.
 
-**Core script**: `scripts/memory_sync.py`  
-**Platforms**: Windows / macOS / Linux  
+**Core script**: `scripts/memory_sync.py`
+**Platforms**: Windows / macOS / Linux
 **Dependencies**: Python 3.8+, Git
 
 ---
@@ -28,11 +28,11 @@ Sync AI memory files from all major AI agents to a GitHub private repo — cross
 
 | Agent | Flag |
 |---|---|
-| WorkBuddy | `--agent workbuddy` |
 | Cursor | `--agent cursor` |
 | OpenClaw | `--agent openclaw` |
 | Hermes | `--agent hermes` |
 | Windsurf | `--agent windsurf` |
+| WorkBuddy | `--agent workbuddy` |
 | Generic (custom dir) | `--agent generic` |
 | **All platforms** | `--agent all` |
 
@@ -42,7 +42,7 @@ Sync AI memory files from all major AI agents to a GitHub private repo — cross
 
 | User says | Action |
 |---|---|
-| "sync memory", "push memory", "upload memory", "backup memory" | `push` (default: workbuddy) |
+| "sync memory", "push memory", "upload memory", "backup memory" | `push` (default: all) |
 | "sync all agents", "push all" | `push --agent all` |
 | "sync openclaw", "sync hermes", "sync cursor" | `push --agent <platform>` |
 | "pull memory", "download memory", "restore memory" | `pull` |
@@ -56,11 +56,11 @@ Sync AI memory files from all major AI agents to a GitHub private repo — cross
 
 ### Push memory
 ```bash
-# Windows
-python %USERPROFILE%\.workbuddy\skills\memory-sync\scripts\memory_sync.py push --agent workbuddy
+# Push all platforms
+python scripts/memory_sync.py push --agent all
 
-# macOS / Linux
-python3 ~/.workbuddy/skills/memory-sync/scripts/memory_sync.py push --agent all
+# Push specific platform
+python scripts/memory_sync.py push --agent cursor
 ```
 
 ### Pull memory
@@ -89,7 +89,7 @@ python scripts/memory_sync.py setup --repo <URL> --token <TOKEN>
 ## Workflows
 
 ### When push is triggered:
-1. Check `~/.workbuddy/memory-sync-config.json` exists
+1. Check config file exists (at `~/.ai-memory/config.json`)
 2. If not configured, prompt user to run setup
 3. Scan corresponding memory directories by `--agent` flag
 4. Push to GitHub, display results
@@ -113,8 +113,9 @@ python scripts/memory_sync.py setup --repo <URL> --token <TOKEN>
 
 ## Notes
 
-- Config file `~/.workbuddy/memory-sync-config.json` contains the token, is in `.gitignore`, and is never pushed
+- Config file at `~/.ai-memory/config.json` contains the token, is in `.gitignore`, and is never pushed
 - Conflict strategy: **latest mtime wins**
 - Use a **GitHub private repository** for security
-- `WORKBUDDY_WORKSPACE_ROOT` env var overrides workspace root
+- `AI_MEMORY_WORKSPACE_ROOT` env var overrides workspace root
+- `AI_MEMORY_LANG` env var forces output language (`en` or `zh`)
 - `MEMORY_DIR` env var specifies custom dir for generic mode

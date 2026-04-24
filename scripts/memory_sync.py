@@ -189,15 +189,15 @@ def T(msg_key: str, **kwargs) -> str:
 
 # ── Global paths (all dynamic, no hardcoding) ────────────────
 HOME           = Path.home()
-WORKBUDDY_DIR  = HOME / ".workbuddy"
-CONFIG_PATH    = WORKBUDDY_DIR / "memory-sync-config.json"
-REPO_CACHE     = WORKBUDDY_DIR / "memory-sync-repo"
+AI_MEMORY_DIR  = HOME / ".ai-memory"
+CONFIG_PATH    = AI_MEMORY_DIR / "config.json"
+REPO_CACHE     = AI_MEMORY_DIR / "repo-cache"
 
 # ── Agent definitions ────────────────────────────────────────
 
 def get_workspace_root() -> Path:
-    """Detect WorkBuddy workspace root directory."""
-    env = os.environ.get("WORKBUDDY_WORKSPACE_ROOT")
+    """Detect workspace root directory."""
+    env = os.environ.get("AI_MEMORY_WORKSPACE_ROOT")
     if env:
         return Path(env)
     candidates = [
@@ -220,7 +220,7 @@ def discover_agent_dirs(agent: str) -> dict:
 
     if agent in ("workbuddy", "all"):
         # User-level memory
-        user_mem = WORKBUDDY_DIR / "memory"
+        user_mem = AI_MEMORY_DIR / "memory" / "workbuddy"
         if user_mem.exists() and list(user_mem.glob("*.md")):
             result["agents/workbuddy/__user__"] = user_mem
         # Workspace-level memory
@@ -329,7 +329,7 @@ def discover_agent_dirs(agent: str) -> dict:
             result["agents/windsurf/memory"] = ws_mem
 
     if agent == "generic":
-        mem_dir_env = os.environ.get("MEMORY_DIR") or os.environ.get("WORKBUDDY_MEMORY_DIR")
+        mem_dir_env = os.environ.get("MEMORY_DIR") or os.environ.get("AI_MEMORY_DIR_ENV")
         if mem_dir_env:
             p = Path(mem_dir_env)
             if p.exists():
@@ -560,7 +560,7 @@ def cmd_pull(args: list):
             # User-level
             src_user = ag_dir / "__user__"
             if src_user.exists():
-                dest = WORKBUDDY_DIR / "memory"
+                dest = AI_MEMORY_DIR / "memory" / "workbuddy"
                 dest.mkdir(parents=True, exist_ok=True)
                 copied = _copy_newer(src_user, dest)
                 if copied:

@@ -1,6 +1,7 @@
 # 忽略本地配置文件（含 GitHub Token，绝对不能上传！）
-memory-sync-config.json
+config.json
 *-config.json
+.ai-memory/
 
 # 忽略本地仓库缓存
 memory-sync-repo/
