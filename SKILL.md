@@ -34,6 +34,7 @@ scripts_dir: scripts
 | WorkBuddy | `--agent workbuddy` |
 | Cursor | `--agent cursor` |
 | OpenClaw | `--agent openclaw` |
+| Hermes | `--agent hermes` |
 | Windsurf | `--agent windsurf` |
 | 自定义目录 | `--agent generic` |
 | **全部平台 / All** | `--agent all` |
@@ -46,6 +47,7 @@ scripts_dir: scripts
 |---|---|
 | "同步记忆"、"推送记忆"、"上传记忆"、"备份记忆" / "sync memory", "push memory" | push（默认 workbuddy） |
 | "同步全部"、"推送所有平台" / "sync all agents", "push all" | push --agent all |
+| "同步 OpenClaw/Hermes/Cursor" / "sync openclaw" | push --agent openclaw/hermes/cursor |
 | "拉取记忆"、"下载记忆"、"恢复记忆" / "pull memory", "download memory" | pull |
 | "记忆同步状态"、"查看同步" / "memory sync status" | status |
 | "查看有哪些平台"、"扫描 AI 平台" / "show agents", "agents scan" | agents |

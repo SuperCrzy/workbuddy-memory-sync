@@ -74,7 +74,8 @@ Windsurf  ──┘
 |---|---|---|
 | **workbuddy** | `.workbuddy/memory/*.md` | `~/.workbuddy/memory/` + `~/WorkBuddy/<id>/.workbuddy/memory/` |
 | **cursor** | `CLAUDE.md`, `.cursorrules`, `.cursor/rules/` | `~/.cursor/rules/` + `~/projects/*/` |
-| **openclaw** | `MEMORY.md`, `TOOLS.md`, `AGENTS.md`, `memory/*.md` | `~/WorkBuddy/`, `~/projects/`, `~/code/` |
+| **openclaw** | `MEMORY.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `AGENTS.md`, `memory/*.md` | `~/.openclaw/workspace/` + `~/.openclaw/agents/<cid>/` + 项目目录 |
+| **hermes** | `MEMORY.md`, `USER.md`, `state.db` | `~/.hermes/memories/` |
 | **windsurf** | `.windsurf/rules/`, `.windsurf/memory/` | `~/.windsurf/rules/`, `~/.windsurf/memory/` |
 | **generic** | 任意目录（环境变量指定） | Custom via `MEMORY_DIR` env var |
 | **all** | 以上全部 | All detected sources |
@@ -171,15 +172,22 @@ ai-memory/                    (你的私有仓库 / your private repo)
 │   │   ├── rules/            ← Cursor rules
 │   │   └── projects/         ← Project-level CLAUDE.md
 │   ├── openclaw/
-│   │   ├── project-name/
+│   │   ├── workspace/        ← OpenClaw 标准工作区 ~/.openclaw/workspace/
 │   │   │   ├── MEMORY.md
-│   │   │   ├── TOOLS.md
-│   │   │   ├── AGENTS.md
+│   │   │   ├── SOUL.md
+│   │   │   ├── USER.md
+│   │   │   ├── IDENTITY.md
 │   │   │   └── memory/
+│   │   │       └── YYYY-MM-DD.md
+│   │   └── agents/<cid>/    ← 各会话的状态目录
+│   ├── hermes/
+│   │   ├── memories/         ← Hermes 标准记忆 ~/.hermes/memories/
+│   │   │   ├── MEMORY.md
+│   │   │   └── USER.md
+│   │   └── state.db          ← SQLite 会话状态
 │   └── windsurf/
 │       ├── rules/
 │       └── memory/
-└── ... (legacy paths, backwards compatible)
 ```
 
 ---

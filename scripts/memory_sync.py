@@ -6,7 +6,8 @@ Universal AI Memory Sync — Cross-platform AI memory synchronization tool
 Supported agents / 支持的 AI 平台:
   workbuddy   WorkBuddy (.workbuddy/memory/ + workspace scans)
   cursor      Cursor IDE (.cursor/rules, CLAUDE.md, .cursorrules)
-  openclaw    OpenClaw (MEMORY.md, TOOLS.md, AGENTS.md, memory/*.md)
+  openclaw    OpenClaw (MEMORY.md, SOUL.md, USER.md, IDENTITY.md, AGENTS.md, memory/*.md)
+  hermes      Hermes Agent (~/.hermes/memories/MEMORY.md, USER.md)
   windsurf    Windsurf (.windsurf/rules, MEMORY.md)
   generic     Any directory — pass --memory-dir explicitly
   all         Sync all detected agents at once
@@ -90,7 +91,7 @@ def discover_agent_dirs(agent: str) -> dict:
         # Project-level CLAUDE.md / .cursorrules (scan common project dirs)
         for proj_root in [HOME / "projects", HOME / "code", HOME / "dev", HOME / "Documents"]:
             if proj_root.exists():
-                for proj in list(proj_root.iterdir())[:20]:  # limit scan depth
+                for proj in list(proj_root.iterdir())[:20]:
                     if not proj.is_dir():
                         continue
                     for fname in ["CLAUDE.md", ".cursorrules", "CURSOR.md"]:
@@ -99,25 +100,78 @@ def discover_agent_dirs(agent: str) -> dict:
                             result[f"agents/cursor/projects/{proj.name}/{fname}"] = f
 
     if agent in ("openclaw", "all"):
-        # OpenClaw memory files — scan common project locations
+        # OpenClaw standard workspace (~/.openclaw/workspace/)
+        # Key files: MEMORY.md, SOUL.md, USER.md, IDENTITY.md, AGENTS.md,
+        #            BOOT.md, HEARTBEAT.md, DREAMS.md + memory/YYYY-MM-DD.md
+        oc_workspace = HOME / ".openclaw" / "workspace"
+        if oc_workspace.exists():
+            core_files = [
+                "MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md",
+                "AGENTS.md", "BOOT.md", "HEARTBEAT.md", "DREAMS.md",
+            ]
+            found = {}
+            for fname in core_files:
+                f = oc_workspace / fname
+                if f.exists():
+                    found[fname] = f
+            mem_dir = oc_workspace / "memory"
+            if mem_dir.exists() and list(mem_dir.glob("*.md")):
+                found["memory/"] = mem_dir
+            if found:
+                for fname, fpath in found.items():
+                    key = f"agents/openclaw/workspace/{fname}" if fname != "memory/" else "agents/openclaw/workspace/memory/"
+                    result[key] = fpath
+        # OpenClaw per-agent state dirs (~/.openclaw/agents/<cid>/)
+        oc_agents_root = HOME / ".openclaw" / "agents"
+        if oc_agents_root.exists():
+            for cid_dir in list(oc_agents_root.iterdir())[:20]:
+                if not cid_dir.is_dir():
+                    continue
+                # Each agent may have its own memory files
+                agent_found = {}
+                for fname in ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "AGENTS.md"]:
+                    f = cid_dir / fname
+                    if f.exists():
+                        agent_found[fname] = f
+                mem_dir = cid_dir / "memory"
+                if mem_dir.exists() and list(mem_dir.glob("*.md")):
+                    agent_found["memory/"] = mem_dir
+                if agent_found:
+                    for fname, fpath in agent_found.items():
+                        key = f"agents/openclaw/agents/{cid_dir.name}/{fname}" if fname != "memory/" else f"agents/openclaw/agents/{cid_dir.name}/memory/"
+                        result[key] = fpath
+        # Workspace-level OpenClaw files (in project dirs)
         for search_root in [HOME / "WorkBuddy", HOME / "projects", HOME / "code", HOME]:
             if not search_root.exists():
                 continue
-            for subdir in list(search_root.iterdir())[:50]:
+            for subdir in list(search_root.iterdir())[:30]:
                 if not subdir.is_dir():
                     continue
                 collected = {}
-                for fname in ["MEMORY.md", "TOOLS.md", "AGENTS.md"]:
+                for fname in ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "AGENTS.md", "TOOLS.md"]:
                     f = subdir / fname
                     if f.exists():
                         collected[fname] = f
                 mem_dir = subdir / "memory"
                 if mem_dir.exists() and list(mem_dir.glob("*.md")):
                     collected["memory/"] = mem_dir
-                if len(collected) >= 2:  # at least 2 OpenClaw files = likely OpenClaw project
+                if len(collected) >= 3:  # require 3+ files to confirm it's an OpenClaw project
                     for fname, fpath in collected.items():
-                        key = f"agents/openclaw/{subdir.name}/{fname}"
+                        key = f"agents/openclaw/projects/{subdir.name}/{fname}" if fname != "memory/" else f"agents/openclaw/projects/{subdir.name}/memory/"
                         result[key] = fpath
+
+    if agent in ("hermes", "all"):
+        # Hermes standard memories directory (~/.hermes/memories/)
+        hm_memories = HOME / ".hermes" / "memories"
+        if hm_memories.exists():
+            for fname in ["MEMORY.md", "USER.md"]:
+                f = hm_memories / fname
+                if f.exists():
+                    result[f"agents/hermes/memories/{fname}"] = f
+        # Also sync the state DB as a blob (optional but useful)
+        hm_state = HOME / ".hermes" / "state.db"
+        if hm_state.exists():
+            result["agents/hermes/state.db"] = hm_state
 
     if agent in ("windsurf", "all"):
         ws_rules = HOME / ".windsurf" / "rules"
@@ -391,16 +445,87 @@ def cmd_pull(args: list):
                     total_copied += 1
                     log(f"  cursor/rules/{f.name}: updated")
 
-        elif ag in ("openclaw", "windsurf", "generic"):
+        elif ag == "openclaw":
+            # Restore OpenClaw workspace memory: ~/.openclaw/workspace/
+            oc_ws_src = ag_dir / "workspace"
+            if oc_ws_src.exists():
+                oc_ws_dest = HOME / ".openclaw" / "workspace"
+                oc_ws_dest.mkdir(parents=True, exist_ok=True)
+                for f in oc_ws_src.rglob("*"):
+                    if f.is_file() and f.suffix == ".md" or f.suffix == "":
+                        rel = f.relative_to(oc_ws_src)
+                        dest_file = oc_ws_dest / rel
+                        dest_file.parent.mkdir(parents=True, exist_ok=True)
+                        if not dest_file.exists() or dest_file.stat().st_mtime < f.stat().st_mtime:
+                            shutil.copy2(f, dest_file)
+                            log(f"  openclaw/workspace/{rel}: updated")
+                            total_copied += 1
+            # Restore per-agent dirs: ~/.openclaw/agents/<cid>/
+            oc_agents_src = ag_dir / "agents"
+            if oc_agents_src.exists():
+                oc_agents_dest = HOME / ".openclaw" / "agents"
+                for cid_dir in oc_agents_src.iterdir():
+                    if not cid_dir.is_dir():
+                        continue
+                    cid_dest = oc_agents_dest / cid_dir.name
+                    cid_dest.mkdir(parents=True, exist_ok=True)
+                    for f in cid_dir.rglob("*"):
+                        if f.is_file():
+                            rel = f.relative_to(cid_dir)
+                            dest_file = cid_dest / rel
+                            dest_file.parent.mkdir(parents=True, exist_ok=True)
+                            if not dest_file.exists() or dest_file.stat().st_mtime < f.stat().st_mtime:
+                                shutil.copy2(f, dest_file)
+                                log(f"  openclaw/agents/{cid_dir.name}/{rel}: updated")
+                                total_copied += 1
+
+        elif ag == "hermes":
+            # Restore Hermes memories: ~/.hermes/memories/
+            hm_src = ag_dir / "memories"
+            if hm_src.exists():
+                hm_dest = HOME / ".hermes" / "memories"
+                hm_dest.mkdir(parents=True, exist_ok=True)
+                for f in hm_src.glob("*.md"):
+                    if not f.exists() or f.stat().st_mtime < hm_src.stat().st_mtime:
+                        shutil.copy2(f, hm_dest / f.name)
+                        log(f"  hermes/memories/{f.name}: updated")
+                        total_copied += 1
+            # Restore state.db
+            state_src = ag_dir / "state.db"
+            if state_src.exists():
+                state_dest = HOME / ".hermes" / "state.db"
+                shutil.copy2(state_src, state_dest)
+                log(f"  hermes/state.db: updated")
+                total_copied += 1
+
+        elif ag == "windsurf":
+            ws_src = ag_dir / "rules"
+            if ws_src.exists():
+                dest = HOME / ".windsurf" / "rules"
+                dest.mkdir(parents=True, exist_ok=True)
+                for f in ws_src.glob("*"):
+                    if not f.exists() or f.stat().st_mtime < ws_src.stat().st_mtime:
+                        shutil.copy2(f, dest / f.name)
+                        log(f"  windsurf/rules/{f.name}: updated")
+                        total_copied += 1
+            ws_mem_src = ag_dir / "memory"
+            if ws_mem_src.exists():
+                dest = HOME / ".windsurf" / "memory"
+                dest.mkdir(parents=True, exist_ok=True)
+                for f in ws_mem_src.glob("*.md"):
+                    shutil.copy2(f, dest / f.name)
+                    log(f"  windsurf/memory/{f.name}: updated")
+                    total_copied += 1
+
+        elif ag == "generic":
             # Generic restore: recreate directory structure
             for item in ag_dir.rglob("*.md"):
                 rel = item.relative_to(ag_dir)
-                # Restore to a local .ai-memory/<agent>/<rel> directory
                 dest_file = HOME / ".ai-memory" / ag / rel
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 if not dest_file.exists() or dest_file.stat().st_mtime < item.stat().st_mtime:
                     shutil.copy2(item, dest_file)
-                    log(f"  {ag}/{rel}: updated")
+                    log(f"  generic/{rel}: updated")
                     total_copied += 1
 
     if total_copied > 0:
