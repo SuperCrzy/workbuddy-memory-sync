@@ -1,0 +1,34 @@
+# 忽略本地配置文件（含 GitHub Token，绝对不能上传！）
+memory-sync-config.json
+*-config.json
+
+# 忽略本地仓库缓存
+memory-sync-repo/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
