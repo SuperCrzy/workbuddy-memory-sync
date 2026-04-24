@@ -19,7 +19,7 @@ Usage / 用法:
   python memory_sync.py status
   python memory_sync.py agents   # list detected agents on this machine
 
-Project / 项目地址: https://github.com/SuperCrzy/workbuddy-memory-sync
+Project / 项目地址: https://github.com/SuperCrzy/AI-Memory-Sync
 """
 
 import sys
@@ -28,6 +28,7 @@ import json
 import subprocess
 import shutil
 import platform
+import locale
 from pathlib import Path
 from datetime import datetime
 
@@ -36,6 +37,155 @@ if sys.platform == "win32":
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+# ── Language Detection ──────────────────────────────────────
+def get_language() -> str:
+    """
+    Detect display language.
+    Reads WORKBUDDY_LANG env var first (e.g. 'en', 'zh', 'zh-CN').
+    Falls back to system locale.
+    Returns 'zh' for Chinese, 'en' for all others.
+    """
+    lang = os.environ.get("WORKBUDDY_LANG", "").lower()
+    if lang in ("zh", "zh-cn", "zh_tw", "zh-hk"):
+        return "zh"
+    # Auto-detect from system locale
+    try:
+        loc = locale.getlocale()[0] or ""
+        if loc.lower().startswith("zh"):
+            return "zh"
+    except Exception:
+        pass
+    return "en"
+
+
+_LANG = get_language()
+
+# ── i18n Translations ────────────────────────────────────────
+_MSGS = {
+    "en": {
+        # Config
+        "no_config":        "[ERROR] No config found. Please run setup first:",
+        "no_config_hint":   "  python memory_sync.py setup --repo <URL> --token <TOKEN>",
+        "config_saved":     "[OK] Config saved to {path}",
+        # Setup
+        "setup_repo_prompt":"Enter your GitHub private repo URL",
+        "setup_repo_hint":  "Example: https://github.com/yourname/ai-memory",
+        "setup_token_prompt":"Enter your GitHub Personal Access Token (needs 'repo' scope)",
+        "setup_verifying":  "[INFO] Verifying connection...",
+        "setup_done":       "[OK] Setup complete!",
+        "setup_cache":      "  Local repo cache : {path}",
+        "setup_workspace":  "  Workspace root   : {path}",
+        "setup_hint":       "Run: python memory_sync.py push",
+        # Ensure repo
+        "cloning":          "[INFO] Cloning repo to {path} ...",
+        "clone_failed":      "[ERROR] Clone failed: {err}",
+        "clone_check":      "Check your repo URL and Token, and ensure the repo has at least one commit.",
+        "clone_ok":         "[OK] Clone successful",
+        # Push
+        "push_scanning":    "[INFO] Syncing agent={agent}, found {n} source(s)...",
+        "push_no_memory":   "[WARN] No memory directories found for agent: {agent}",
+        "push_files":      "  {key}: {n} file(s)",
+        "push_nothing":     "[INFO] Nothing to sync",
+        "push_no_changes":  "[OK] No changes since last sync",
+        "push_success":     "[OK] Push successful! Synced {n} file(s) from {m} source(s)",
+        "push_failed":      "[ERROR] Push failed: {err}",
+        # Pull
+        "pull_fetching":    "[INFO] Pulling latest memory from GitHub (agent={agent})...",
+        "pull_warn":        "[WARN] Pull issue: {err}",
+        "pull_first_hint":  "If this is the first use, push from another device first.",
+        "pull_no_data":     "[INFO] No synced data found in repo yet.",
+        "pull_updated":      "  {key}: {n} file(s) updated",
+        "pull_done":        "[OK] Pull complete! Updated {n} file(s)",
+        "pull_up_to_date":  "[OK] Already up to date",
+        # Agents
+        "agents_scanning":  "[INFO] Scanning for AI agents on this machine...\n",
+        "agents_none":      "  No agent memory directories detected.",
+        "agents_section":   "\n[{agent}]",
+        "agents_dir":       "  {key}: {n} .md file(s)  ({path})",
+        "agents_file":      "  {key}: 1 file  ({path})",
+        # Status
+        "status_repo":      "Repo URL    : {url}",
+        "status_cache":     "Local cache : {path}",
+        "status_platform":  "Platform    : {platform}",
+        "status_hostname":  "Hostname    : {name}",
+        "status_last":      "\nLast 5 syncs:",
+        "status_sources":   "\nDetected memory sources:",
+        "status_none":      "  (none found)",
+        "status_sources_detail": "  {key}: {n} file(s)  ({path})",
+        "status_sources_file":  "  {key}: 1 file  ({path})",
+        # Generic / warnings
+        "generic_warn":     "[WARN] --agent generic requires MEMORY_DIR env var to be set.",
+        "generic_hint":     "  Example: MEMORY_DIR=/path/to/memory python memory_sync.py push --agent generic",
+        # Main
+        "unknown_cmd":      "[ERROR] Unknown command: {cmd}",
+        "available":        "Available: {cmds}",
+    },
+    "zh": {
+        # Config
+        "no_config":        "[错误] 未找到配置文件。请先运行 setup：",
+        "no_config_hint":   "  python memory_sync.py setup --repo <URL> --token <TOKEN>",
+        "config_saved":     "[OK] 配置已保存至 {path}",
+        # Setup
+        "setup_repo_prompt":"请输入 GitHub 私有仓库 URL",
+        "setup_repo_hint":  "示例：https://github.com/yourname/ai-memory",
+        "setup_token_prompt":"请输入 GitHub Personal Access Token（需具备 repo 权限）",
+        "setup_verifying":  "[信息] 正在验证连接...",
+        "setup_done":       "[OK] 配置完成！",
+        "setup_cache":      "  本地仓库缓存 : {path}",
+        "setup_workspace":  "  工作区根目录   : {path}",
+        "setup_hint":       "运行：python memory_sync.py push",
+        # Ensure repo
+        "cloning":          "[信息] 正在克隆仓库至 {path} ...",
+        "clone_failed":      "[错误] 克隆失败：{err}",
+        "clone_check":      "请检查仓库 URL 和 Token，并确保仓库至少有一个提交。",
+        "clone_ok":         "[OK] 克隆成功",
+        # Push
+        "push_scanning":    "[信息] 正在同步 agent={agent}，发现 {n} 个源...",
+        "push_no_memory":   "[警告] 未找到 agent={agent} 的记忆目录",
+        "push_files":       "  {key}: {n} 个文件",
+        "push_nothing":      "[信息] 无需同步",
+        "push_no_changes":  "[OK] 自上次同步以来无变化",
+        "push_success":      "[OK] 推送成功！已同步 {n} 个文件，来自 {m} 个源",
+        "push_failed":      "[错误] 推送失败：{err}",
+        # Pull
+        "pull_fetching":    "[信息] 正在从 GitHub 拉取最新记忆 (agent={agent})...",
+        "pull_warn":        "[警告] 拉取异常：{err}",
+        "pull_first_hint":  "如果这是首次使用，请先在另一台设备执行推送。",
+        "pull_no_data":     "[信息] 仓库中尚未发现同步数据。",
+        "pull_updated":      "  {key}: 更新了 {n} 个文件",
+        "pull_done":        "[OK] 拉取完成！已更新 {n} 个文件",
+        "pull_up_to_date":  "[OK] 已是最新",
+        # Agents
+        "agents_scanning":  "[信息] 正在扫描本机 AI 平台...\n",
+        "agents_none":      "  未检测到任何 AI 平台的记忆目录。",
+        "agents_section":   "\n【{agent}】",
+        "agents_dir":       "  {key}: {n} 个 .md 文件  ({path})",
+        "agents_file":      "  {key}: 1 个文件  ({path})",
+        # Status
+        "status_repo":      "仓库 URL   : {url}",
+        "status_cache":     "本地缓存   : {path}",
+        "status_platform":  "平台       : {platform}",
+        "status_hostname":  "主机名     : {name}",
+        "status_last":      "\n最近 5 次同步：",
+        "status_sources":   "\n检测到的记忆源：",
+        "status_none":      "  （未找到）",
+        "status_sources_detail": "  {key}: {n} 个文件  ({path})",
+        "status_sources_file":  "  {key}: 1 个文件  ({path})",
+        # Generic / warnings
+        "generic_warn":     "[警告] --agent generic 需要设置 MEMORY_DIR 环境变量。",
+        "generic_hint":     "  示例：MEMORY_DIR=/path/to/memory python memory_sync.py push --agent generic",
+        # Main
+        "unknown_cmd":      "[错误] 未知命令：{cmd}",
+        "available":        "可用命令：{cmds}",
+    }
+}
+
+
+def T(msg_key: str, **kwargs) -> str:
+    """Return translated string for current language."""
+    return _MSGS[_LANG].get(msg_key, _MSGS["en"].get(msg_key, msg_key)).format(**kwargs)
+
 
 # ── Global paths (all dynamic, no hardcoding) ────────────────
 HOME           = Path.home()
@@ -101,8 +251,6 @@ def discover_agent_dirs(agent: str) -> dict:
 
     if agent in ("openclaw", "all"):
         # OpenClaw standard workspace (~/.openclaw/workspace/)
-        # Key files: MEMORY.md, SOUL.md, USER.md, IDENTITY.md, AGENTS.md,
-        #            BOOT.md, HEARTBEAT.md, DREAMS.md + memory/YYYY-MM-DD.md
         oc_workspace = HOME / ".openclaw" / "workspace"
         if oc_workspace.exists():
             core_files = [
@@ -127,7 +275,6 @@ def discover_agent_dirs(agent: str) -> dict:
             for cid_dir in list(oc_agents_root.iterdir())[:20]:
                 if not cid_dir.is_dir():
                     continue
-                # Each agent may have its own memory files
                 agent_found = {}
                 for fname in ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md", "AGENTS.md"]:
                     f = cid_dir / fname
@@ -188,8 +335,8 @@ def discover_agent_dirs(agent: str) -> dict:
             if p.exists():
                 result["agents/generic/memory"] = p
         else:
-            log("[WARN] --agent generic requires MEMORY_DIR env var to be set.")
-            log("  Example: MEMORY_DIR=/path/to/memory python memory_sync.py push --agent generic")
+            log(T("generic_warn"))
+            log(T("generic_hint"))
 
     return result
 
@@ -201,8 +348,8 @@ def log(msg: str):
 
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
-        log("[ERROR] No config found. Please run setup first:")
-        log("  python memory_sync.py setup --repo <URL> --token <TOKEN>")
+        log(T("no_config"))
+        log(T("no_config_hint"))
         sys.exit(1)
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -211,7 +358,7 @@ def save_config(config: dict):
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
-    log(f"[OK] Config saved to {CONFIG_PATH}")
+    log(T("config_saved", path=CONFIG_PATH))
 
 def build_auth_url(repo_url: str, token: str) -> str:
     if "github.com" in repo_url and token:
@@ -236,14 +383,14 @@ def ensure_repo(config: dict) -> Path:
     auth_url = build_auth_url(repo_url, token)
 
     if not (REPO_CACHE / ".git").exists():
-        log(f"[INFO] Cloning repo to {REPO_CACHE} ...")
+        log(T("cloning", path=REPO_CACHE))
         REPO_CACHE.parent.mkdir(parents=True, exist_ok=True)
         code, out, err = run_git(["clone", auth_url, str(REPO_CACHE)], cwd=str(HOME))
         if code != 0:
-            log(f"[ERROR] Clone failed: {err}")
-            log("Check your repo URL and Token, and ensure the repo has at least one commit.")
+            log(T("clone_failed", err=err))
+            log(T("clone_check"))
             sys.exit(1)
-        log("[OK] Clone successful")
+        log(T("clone_ok"))
     else:
         run_git(["remote", "set-url", "origin", auth_url], cwd=str(REPO_CACHE), silent=True)
 
@@ -281,22 +428,22 @@ def cmd_setup(args: list):
     token    = p.get("token")
 
     if not repo_url:
-        log("Enter your GitHub private repo URL")
-        log("Example: https://github.com/yourname/ai-memory")
+        log(T("setup_repo_prompt"))
+        log(T("setup_repo_hint"))
         repo_url = input("> ").strip()
     if not token:
-        log("Enter your GitHub Personal Access Token (needs 'repo' scope)")
+        log(T("setup_token_prompt"))
         token = input("> ").strip()
 
     config = {"repo_url": repo_url, "token": token}
     save_config(config)
 
-    log("\n[INFO] Verifying connection...")
+    log("\n" + T("setup_verifying"))
     ensure_repo(config)
-    log(f"\n[OK] Setup complete!")
-    log(f"  Local repo cache : {REPO_CACHE}")
-    log(f"  Workspace root   : {get_workspace_root()}")
-    log("\nRun: python memory_sync.py push")
+    log("\n" + T("setup_done"))
+    log(T("setup_cache", path=REPO_CACHE))
+    log(T("setup_workspace", path=get_workspace_root()))
+    log("\n" + T("setup_hint"))
 
 
 def _copy_dir_to_repo(src_dir: Path, dest_dir: Path) -> int:
@@ -323,10 +470,10 @@ def cmd_push(args: list):
 
     agent_dirs = discover_agent_dirs(agent)
     if not agent_dirs:
-        log(f"[WARN] No memory directories found for agent: {agent}")
+        log(T("push_no_memory", agent=agent))
         return
 
-    log(f"[INFO] Syncing agent={agent}, found {len(agent_dirs)} source(s)...")
+    log(T("push_scanning", agent=agent, n=len(agent_dirs)))
 
     total_copied = 0
     for repo_key, local_path in agent_dirs.items():
@@ -336,11 +483,11 @@ def cmd_push(args: list):
         else:
             copied = _copy_file_to_repo(local_path, dest.parent)
         if copied > 0:
-            log(f"  {repo_key}: {copied} file(s)")
+            log(T("push_files", key=repo_key, n=copied))
             total_copied += copied
 
     if total_copied == 0:
-        log("[INFO] Nothing to sync")
+        log(T("push_nothing"))
         return
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -352,7 +499,7 @@ def cmd_push(args: list):
         cwd=str(repo_dir)
     )
     if code != 0 and "nothing to commit" in (out + err).lower():
-        log("[OK] No changes since last sync")
+        log(T("push_no_changes"))
         return
 
     branch = get_current_branch(repo_dir)
@@ -361,9 +508,9 @@ def cmd_push(args: list):
         code, out, err = run_git(["push", "--set-upstream", "origin", branch], cwd=str(repo_dir))
 
     if code == 0:
-        log(f"\n[OK] Push successful! Synced {total_copied} file(s) from {len(agent_dirs)} source(s)")
+        log("\n" + T("push_success", n=total_copied, m=len(agent_dirs)))
     else:
-        log(f"[ERROR] Push failed: {err}")
+        log(T("push_failed", err=err))
         sys.exit(1)
 
 
@@ -385,18 +532,18 @@ def cmd_pull(args: list):
     config   = load_config()
     repo_dir = ensure_repo(config)
 
-    log(f"[INFO] Pulling latest memory from GitHub (agent={agent})...")
+    log(T("pull_fetching", agent=agent))
     branch = get_current_branch(repo_dir)
     code, out, err = run_git(["pull", "origin", branch], cwd=str(repo_dir))
     if code != 0:
-        log(f"[WARN] Pull issue: {err}")
-        log("If this is the first use, push from another device first.")
+        log(T("pull_warn", err=err))
+        log(T("pull_first_hint"))
         return
 
     total_copied = 0
     agents_dir = repo_dir / "agents"
     if not agents_dir.exists():
-        log("[INFO] No synced data found in repo yet.")
+        log(T("pull_no_data"))
         return
 
     if agent == "all":
@@ -417,7 +564,7 @@ def cmd_pull(args: list):
                 dest.mkdir(parents=True, exist_ok=True)
                 copied = _copy_newer(src_user, dest)
                 if copied:
-                    log(f"  workbuddy/__user__: {copied} file(s) updated")
+                    log(T("pull_updated", key="workbuddy/__user__", n=copied))
                     total_copied += copied
             # Workspace-level
             ws_src = ag_dir / "workspaces"
@@ -428,11 +575,11 @@ def cmd_pull(args: list):
                         continue
                     ws_dest = ws_root / ws_id_dir.name / ".workbuddy" / "memory"
                     if not (ws_root / ws_id_dir.name).exists():
-                        continue  # skip workspaces not present on this machine
+                        continue
                     ws_dest.mkdir(parents=True, exist_ok=True)
                     copied = _copy_newer(ws_id_dir, ws_dest)
                     if copied:
-                        log(f"  workbuddy/workspaces/{ws_id_dir.name}: {copied} file(s) updated")
+                        log(T("pull_updated", key=f"workbuddy/workspaces/{ws_id_dir.name}", n=copied))
                         total_copied += copied
 
         elif ag == "cursor":
@@ -443,24 +590,22 @@ def cmd_pull(args: list):
                 for f in rules_src.glob("*"):
                     shutil.copy2(f, dest / f.name)
                     total_copied += 1
-                    log(f"  cursor/rules/{f.name}: updated")
+                    log(T("pull_updated", key=f"cursor/rules/{f.name}", n=1))
 
         elif ag == "openclaw":
-            # Restore OpenClaw workspace memory: ~/.openclaw/workspace/
             oc_ws_src = ag_dir / "workspace"
             if oc_ws_src.exists():
                 oc_ws_dest = HOME / ".openclaw" / "workspace"
                 oc_ws_dest.mkdir(parents=True, exist_ok=True)
                 for f in oc_ws_src.rglob("*"):
-                    if f.is_file() and f.suffix == ".md" or f.suffix == "":
+                    if f.is_file() and (f.suffix == ".md" or f.suffix == ""):
                         rel = f.relative_to(oc_ws_src)
                         dest_file = oc_ws_dest / rel
                         dest_file.parent.mkdir(parents=True, exist_ok=True)
                         if not dest_file.exists() or dest_file.stat().st_mtime < f.stat().st_mtime:
                             shutil.copy2(f, dest_file)
-                            log(f"  openclaw/workspace/{rel}: updated")
+                            log(T("pull_updated", key=f"openclaw/workspace/{rel}", n=1))
                             total_copied += 1
-            # Restore per-agent dirs: ~/.openclaw/agents/<cid>/
             oc_agents_src = ag_dir / "agents"
             if oc_agents_src.exists():
                 oc_agents_dest = HOME / ".openclaw" / "agents"
@@ -476,11 +621,10 @@ def cmd_pull(args: list):
                             dest_file.parent.mkdir(parents=True, exist_ok=True)
                             if not dest_file.exists() or dest_file.stat().st_mtime < f.stat().st_mtime:
                                 shutil.copy2(f, dest_file)
-                                log(f"  openclaw/agents/{cid_dir.name}/{rel}: updated")
+                                log(T("pull_updated", key=f"openclaw/agents/{cid_dir.name}/{rel}", n=1))
                                 total_copied += 1
 
         elif ag == "hermes":
-            # Restore Hermes memories: ~/.hermes/memories/
             hm_src = ag_dir / "memories"
             if hm_src.exists():
                 hm_dest = HOME / ".hermes" / "memories"
@@ -488,14 +632,13 @@ def cmd_pull(args: list):
                 for f in hm_src.glob("*.md"):
                     if not f.exists() or f.stat().st_mtime < hm_src.stat().st_mtime:
                         shutil.copy2(f, hm_dest / f.name)
-                        log(f"  hermes/memories/{f.name}: updated")
+                        log(T("pull_updated", key=f"hermes/memories/{f.name}", n=1))
                         total_copied += 1
-            # Restore state.db
             state_src = ag_dir / "state.db"
             if state_src.exists():
                 state_dest = HOME / ".hermes" / "state.db"
                 shutil.copy2(state_src, state_dest)
-                log(f"  hermes/state.db: updated")
+                log(T("pull_updated", key="hermes/state.db", n=1))
                 total_copied += 1
 
         elif ag == "windsurf":
@@ -506,7 +649,7 @@ def cmd_pull(args: list):
                 for f in ws_src.glob("*"):
                     if not f.exists() or f.stat().st_mtime < ws_src.stat().st_mtime:
                         shutil.copy2(f, dest / f.name)
-                        log(f"  windsurf/rules/{f.name}: updated")
+                        log(T("pull_updated", key=f"windsurf/rules/{f.name}", n=1))
                         total_copied += 1
             ws_mem_src = ag_dir / "memory"
             if ws_mem_src.exists():
@@ -514,44 +657,43 @@ def cmd_pull(args: list):
                 dest.mkdir(parents=True, exist_ok=True)
                 for f in ws_mem_src.glob("*.md"):
                     shutil.copy2(f, dest / f.name)
-                    log(f"  windsurf/memory/{f.name}: updated")
+                    log(T("pull_updated", key=f"windsurf/memory/{f.name}", n=1))
                     total_copied += 1
 
         elif ag == "generic":
-            # Generic restore: recreate directory structure
             for item in ag_dir.rglob("*.md"):
                 rel = item.relative_to(ag_dir)
                 dest_file = HOME / ".ai-memory" / ag / rel
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 if not dest_file.exists() or dest_file.stat().st_mtime < item.stat().st_mtime:
                     shutil.copy2(item, dest_file)
-                    log(f"  generic/{rel}: updated")
+                    log(T("pull_updated", key=f"generic/{rel}", n=1))
                     total_copied += 1
 
     if total_copied > 0:
-        log(f"\n[OK] Pull complete! Updated {total_copied} file(s)")
+        log("\n" + T("pull_done", n=total_copied))
     else:
-        log("[OK] Already up to date")
+        log(T("pull_up_to_date"))
 
 
 def cmd_agents(args: list):
     """List all detected agents and their memory directories on this machine."""
-    log(f"[INFO] Scanning for AI agents on this machine...\n")
+    log(T("agents_scanning"))
     all_dirs = discover_agent_dirs("all")
     if not all_dirs:
-        log("  No agent memory directories detected.")
+        log(T("agents_none"))
         return
     current_prefix = ""
     for repo_key, local_path in sorted(all_dirs.items()):
         agent_name = repo_key.split("/")[1]
         if agent_name != current_prefix:
-            log(f"\n[{agent_name.upper()}]")
+            log(T("agents_section", agent=agent_name.upper()))
             current_prefix = agent_name
         if local_path.is_dir():
             files = list(local_path.glob("*.md"))
-            log(f"  {repo_key.split('/', 2)[-1]}: {len(files)} .md file(s)  ({local_path})")
+            log(T("agents_dir", key=repo_key.split("/", 2)[-1], n=len(files), path=local_path))
         else:
-            log(f"  {repo_key.split('/', 2)[-1]}: 1 file  ({local_path})")
+            log(T("agents_file", key=repo_key.split("/", 2)[-1], path=local_path))
 
 
 def cmd_status(args: list):
@@ -560,29 +702,29 @@ def cmd_status(args: list):
         return
 
     config = load_config()
-    log(f"Repo URL    : {config['repo_url']}")
-    log(f"Local cache : {REPO_CACHE}")
-    log(f"Platform    : {platform.system()} {platform.release()}")
-    log(f"Hostname    : {get_hostname()}")
+    log(T("status_repo", url=config["repo_url"]))
+    log(T("status_cache", path=REPO_CACHE))
+    log(T("status_platform", platform=f"{platform.system()} {platform.release()}"))
+    log(T("status_hostname", name=get_hostname()))
 
     if (REPO_CACHE / ".git").exists():
         code, out, _ = run_git(["log", "--oneline", "-5"], cwd=str(REPO_CACHE))
         if code == 0 and out:
-            log("\nLast 5 syncs:")
+            log(T("status_last"))
             for line in out.split("\n"):
                 log(f"  {line}")
 
-    log("\nDetected memory sources:")
+    log(T("status_sources"))
     all_dirs = discover_agent_dirs("all")
     if not all_dirs:
-        log("  (none found)")
+        log(T("status_none"))
     else:
         for repo_key, local_path in sorted(all_dirs.items()):
             if local_path.is_dir():
                 files = list(local_path.glob("*.md"))
-                log(f"  {repo_key}: {len(files)} file(s)  ({local_path})")
+                log(T("status_sources_detail", key=repo_key, n=len(files), path=local_path))
             else:
-                log(f"  {repo_key}: 1 file  ({local_path})")
+                log(T("status_sources_file", key=repo_key, path=local_path))
 
 
 # ── Entry point ───────────────────────────────────────────────
@@ -604,8 +746,8 @@ def main():
     }
 
     if cmd not in commands:
-        log(f"[ERROR] Unknown command: {cmd}")
-        log(f"Available: {' / '.join(commands.keys())}")
+        log(T("unknown_cmd", cmd=cmd))
+        log(T("available", cmds=" / ".join(commands.keys())))
         sys.exit(1)
 
     commands[cmd](rest)
