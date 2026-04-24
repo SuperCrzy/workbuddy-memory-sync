@@ -36,3 +36,6 @@ Thumbs.db
 # GIF 演示文件（本地生成，不入 Git）
 *.gif
 demo.gif
+
+# 社交媒体宣传文案（本地文件，不入 Git）
+SOCIAL_POSTS.md
